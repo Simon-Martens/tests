@@ -77,16 +77,5 @@ func (r *LayoutRegistry) Get(name string) (*template.Template, error) {
 		return nil, NewError(NoTemplateError, name)
 	}
 
-	availables, err := tc.Get(r.layoutsFS)
-	if err != nil {
-		return nil, err
-	}
-
-	t := availables.Lookup(ROOT_LAYOUT_NAME)
-	if t == nil {
-		return nil, NewError(NoTemplateError, name)
-	}
-
-	return t, nil
-
+	return tc.Get(r.layoutsFS)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/Simon-Martens/misc_tests/templating"
@@ -31,6 +32,7 @@ func main() {
 
 func getEverything(layouts *templating.LayoutRegistry, routes *templating.TemplateRegistry) func(c echo.Context) error {
 	return func(c echo.Context) error {
+
 		path := c.Request().URL.Path
 
 		// TODO: getting single components is not supported ATM
@@ -42,6 +44,8 @@ func getEverything(layouts *templating.LayoutRegistry, routes *templating.Templa
 		if err != nil {
 			return c.String(500, err.Error())
 		}
+
+		fmt.Println(layout.Name())
 
 		// We clone this here, since driver templates can only be executed once
 		layout, err = layout.Clone()
