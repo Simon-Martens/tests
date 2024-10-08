@@ -39,11 +39,14 @@ func getEverything(layouts *templating.LayoutRegistry, routes *templating.Templa
 		if !strings.HasSuffix(path, "/") {
 			path += "/"
 		}
-
 		layout, err := layouts.Get(DEFAULT_LAYOUT_NAME)
 		if err != nil {
 			return c.String(500, err.Error())
 		}
+		// layout, err := layouts.Get(DEFAULT_LAYOUT_NAME)
+		// if err != nil {
+		// 	return c.String(500, err.Error())
+		// }
 
 		fmt.Println(layout.Name())
 
@@ -55,7 +58,7 @@ func getEverything(layouts *templating.LayoutRegistry, routes *templating.Templa
 
 		// tc, err := routes.Add(path, layout)
 
-		tc, err := routes.Get(path)
+		err = routes.Add(path, layout)
 		if err != nil {
 			return c.String(500, err.Error())
 		}
@@ -64,17 +67,17 @@ func getEverything(layouts *templating.LayoutRegistry, routes *templating.Templa
 		// Are there sub-templates? Do I need a for loop to add them to the global name space?
 		// INFO: since we don't clone the template, we can't execute it multiple times, right?
 		// INFO: AddParseTree deletes all sub-templates of the root template.
-		for _, st := range tc.Templates() {
-			_, err = layout.AddParseTree(st.Name(), st.Tree)
-			if err != nil {
-				return c.String(500, err.Error())
-			}
-		}
+		// for _, st := range tc.Templates() {
+		//	_, err = layout.AddParseTree(st.Name(), st.Tree)
+		//	if err != nil {
+		//		return c.String(500, err.Error())
+		//	}
+		// }
 
 		// TODO: we should probably reuse buffers here to avoid allocations
 		var buffer bytes.Buffer
 
-		err = tc.Execute(&buffer, nil)
+		err = layout.Execute(&buffer, nil)
 		if err != nil {
 			return c.String(500, err.Error())
 		}

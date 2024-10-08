@@ -72,25 +72,30 @@ func (r *TemplateRegistry) Parse() {
 	})
 }
 
-// INFO: the difference between a trailing slash and no trailing slash is important
-// a trailing slash means to get the template context for the directory
-// no trailing slash means to get the template context for the component
-func (r *TemplateRegistry) Get(path string) (*template.Template, error) {
+func (r *TemplateRegistry) Add(path string, t *template.Template) error {
 	tc := r.cache.Get(path)
 	if tc == nil {
-		return nil, NewError(NoTemplateError, path)
+		return NewError(NoTemplateError, path)
 	}
 
-	return tc.Get(r.routesFS)
+	temp, err := tc.Get(r.routesFS)
+	if err != nil {
+		return err
+	}
+
+	for _, st := range temp.Templates() {
+		_, err = t.AddParseTree(st.Name(), st.Tree)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (r *TemplateRegistry) Add(path string, t *template.Template) (*template.Template, error) {
-	tc := r.cache.Get(path)
-	if tc == nil {
-		return nil, NewError(NoTemplateError, path)
-	}
-
-	return tc.Add(r.routesFS, t)
+// TODO: get for a specific component
+func (r *TemplateRegistry) Get(path string) error {
+	return nil
 }
 
 func PathToFSPath(p string) string {

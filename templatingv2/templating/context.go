@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/pocketbase/pocketbase/tools/store"
 )
 
 var InvalidPathError = errors.New("Invalid path. Must be a directory.")
@@ -32,7 +34,8 @@ type TemplateContext struct {
 	// The values are FS paths from the root directory of the templates
 	locals  map[string]string
 	globals map[string]string
-	cache   *template.Template
+	all     *template.Template
+	cache   *store.Store[*template.Template]
 }
 
 func NewTemplateContext(path string) TemplateContext {
@@ -40,7 +43,7 @@ func NewTemplateContext(path string) TemplateContext {
 		Path:    path,
 		locals:  make(map[string]string),
 		globals: make(map[string]string),
-		cache:   nil,
+		all:     nil,
 	}
 }
 
@@ -107,68 +110,31 @@ func (c *TemplateContext) GetGlobals() map[string]string {
 	return c.globals
 }
 
-func (c *TemplateContext) Add(fsys fs.FS, t *template.Template) (*template.Template, error) {
-	if c.cache != nil {
-		return c.cache, nil
-	}
-
-	t, err := readTemplates(fsys, t, c.globals)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err = readTemplates(fsys, t, c.locals)
-	if err != nil {
-		return nil, err
-	}
-
-	c.cache = t
-	return t, nil
-}
-
-func (c *TemplateContext) GetByName(fsys fs.FS) (*template.Template, error) {
-	if c.cache != nil {
-		return c.cache, nil
-	}
-
-	t := template.New(c.Path)
-
-	t, err := readTemplates(fsys, t, c.globals)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err = readTemplates(fsys, t, c.locals)
-	if err != nil {
-		return nil, err
-	}
-
-	c.cache = t
-	return t, nil
-}
-
-// Get gets the template namespace for this path. The enerated template is cached and
-// reused on subsequent calls. This gives the GC a lot of work to do, but it's fine for now.
-// TODO: also, we re-parse global components in every directory, which is not very efficient. But to make sure, parts of the template weren't already executed, we do this (could just simply clone the global templates on parsing, but the context is cached so I guess it's ok for now)
 func (c *TemplateContext) Get(fsys fs.FS) (*template.Template, error) {
-	if c.cache != nil {
-		return c.cache, nil
+	if c.all == nil {
+		err := c.SetCache(fsys)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	t := template.New(c.Path)
+	return c.all, nil
+}
 
-	t, err := readTemplates(fsys, t, c.globals)
+func (c *TemplateContext) SetCache(fsys fs.FS) error {
+	t, err := readTemplates(fsys, nil, c.globals)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	t, err = readTemplates(fsys, t, c.locals)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	c.cache = t
-	return t, nil
+	c.all = t
+
+	return nil
 }
 
 func readTemplates(fsys fs.FS, t *template.Template, paths map[string]string) (*template.Template, error) {
@@ -183,10 +149,23 @@ func readTemplates(fsys fs.FS, t *template.Template, paths map[string]string) (*
 			return nil, err
 		}
 
-		_, err = t.AddParseTree(k, temp.Tree)
+		if t == nil {
+			t = temp
+			continue
+		}
+
+		for _, template := range temp.Templates() {
+			_, err = t.AddParseTree(template.Name(), template.Tree)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		_, err = t.AddParseTree(temp.Name(), temp.Tree)
 		if err != nil {
 			return nil, err
 		}
+
 	}
 
 	return t, nil
