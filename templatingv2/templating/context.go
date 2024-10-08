@@ -96,17 +96,17 @@ func (c *TemplateContext) Parse(fsys fs.FS) error {
 	return nil
 }
 
-func (c *TemplateContext) SetGlobals(globals *map[string]string) error {
+func (c *TemplateContext) SetGlobals(globals map[string]string) error {
 	// INFO: this allows for overwriting of existing global keys.
 	// Make sure to call this appopriately before or after Parse(), depending on your use case
-	for k, v := range *globals {
+	for k, v := range globals {
 		c.globals[k] = v
 	}
 	return nil
 }
 
-func (c *TemplateContext) GetGlobals() *map[string]string {
-	return &c.globals
+func (c *TemplateContext) GetGlobals() map[string]string {
+	return c.globals
 }
 
 func (c *TemplateContext) Get(fsys fs.FS) (*template.Template, error) {
