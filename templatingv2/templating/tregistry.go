@@ -15,15 +15,19 @@ var InvalidTemplateError = errors.New("invalid template")
 
 type TemplateRegistry struct {
 	routesFS fs.FS
-	// WARNING: The keys of this store are routing paths, NOT filesystem paths
-	cache *store.Store[*TemplateContext]
-	funcs template.FuncMap
+	parsed   bool
+	// INFO: Template & cache keys are directory routing paths, with '/' as root
+	templates map[string]TemplateContext
+	cache     *store.Store[*template.Template]
+	funcs     template.FuncMap
 }
 
 func NewTemplateRegistry(routes fs.FS) *TemplateRegistry {
 	return &TemplateRegistry{
-		routesFS: routes,
-		cache:    store.New[*TemplateContext](nil),
+		routesFS:  routes,
+		parsed:    false,
+		templates: make(map[string]TemplateContext),
+		cache:     store.New[*template.Template](nil),
 		funcs: template.FuncMap{
 			"safe": func(s string) template.HTML {
 				return template.HTML(s)
@@ -32,11 +36,10 @@ func NewTemplateRegistry(routes fs.FS) *TemplateRegistry {
 	}
 }
 
-func (r *TemplateRegistry) Register(path string, fs fs.FS) {
-	r.routesFS = merged_fs.MergeMultiple(fs, r.routesFS)
-
-	// We invalidate the cache because the routesFS has changed
-	r.cache = store.New[*TemplateContext](nil)
+// This returns a new TemplateRegistry with the new fs added to the existing fs,
+// merging with the existing FS, possibly overwriting existing files.
+func (r *TemplateRegistry) Register(path string, fs fs.FS) *TemplateRegistry {
+	return NewTemplateRegistry(merged_fs.MergeMultiple(fs, r.routesFS))
 }
 
 func (r *TemplateRegistry) RegisterFuncs(funcs template.FuncMap) {
@@ -46,6 +49,9 @@ func (r *TemplateRegistry) RegisterFuncs(funcs template.FuncMap) {
 }
 
 func (r *TemplateRegistry) Parse() {
+	// INFO: setting parsed first is important, as it avoids infinite loops in Add() below
+	r.parsed = true
+
 	fs.WalkDir(r.routesFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() {
 			return nil
@@ -59,14 +65,15 @@ func (r *TemplateRegistry) Parse() {
 			pathabove := strings.Join(pathelem[:len(pathelem)-1], string(os.PathSeparator))
 			pathabove = FSPathToPath(pathabove)
 
-			globals := r.cache.Get(pathabove)
-			if globals != nil {
+			globals, ok := r.templates[pathabove]
+			if ok {
 				tc.SetGlobals(globals.GetGlobals())
 			}
 		}
 
 		tc.Parse(r.routesFS)
-		r.cache.Set(url, &tc)
+
+		r.templates[url] = tc
 
 		return nil
 	})
@@ -75,6 +82,7 @@ func (r *TemplateRegistry) Parse() {
 func (r *TemplateRegistry) Add(path string, t *template.Template) error {
 	tc := r.cache.Get(path)
 	if tc == nil {
+
 		return NewError(NoTemplateError, path)
 	}
 
