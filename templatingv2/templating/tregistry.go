@@ -79,20 +79,30 @@ func (r *TemplateRegistry) Parse() {
 	})
 }
 
+// This function takes a template (typically a layout) and adds all the templates of
+// a given directory path to it. This is useful for adding a layout to a template.
 func (r *TemplateRegistry) Add(path string, t *template.Template) error {
-	tc := r.cache.Get(path)
-	if tc == nil {
+	temp := r.cache.Get(path)
+	if temp == nil {
+		tc, ok := r.templates[path]
+		if !ok {
+			if !r.parsed {
+				r.Parse()
+				return r.Add(path, t)
+			}
+			return NewError(NoTemplateError, path)
+		}
 
-		return NewError(NoTemplateError, path)
-	}
+		temp, err := tc.Get(r.routesFS)
+		if err != nil {
+			return err
+		}
 
-	temp, err := tc.Get(r.routesFS)
-	if err != nil {
-		return err
+		r.cache.Set(path, temp)
 	}
 
 	for _, st := range temp.Templates() {
-		_, err = t.AddParseTree(st.Name(), st.Tree)
+		_, err := t.AddParseTree(st.Name(), st.Tree)
 		if err != nil {
 			return err
 		}
@@ -104,33 +114,4 @@ func (r *TemplateRegistry) Add(path string, t *template.Template) error {
 // TODO: get for a specific component
 func (r *TemplateRegistry) Get(path string) error {
 	return nil
-}
-
-func PathToFSPath(p string) string {
-	if p == "/" {
-		return "."
-	}
-
-	p = strings.TrimPrefix(p, "/")
-	p = strings.TrimSuffix(p, "/")
-
-	return p
-}
-
-func FSPathToPath(p string) string {
-	if p == "." {
-		return "/"
-	}
-
-	p = strings.TrimPrefix(p, ".")
-
-	if !strings.HasPrefix(p, "/") {
-		p = "/" + p
-	}
-
-	if !strings.HasSuffix(p, "/") {
-		p = p + "/"
-	}
-
-	return p
 }
