@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"github.com/pocketbase/pocketbase/tools/store"
 )
 
 var InvalidPathError = errors.New("Invalid path. Must be a directory.")
@@ -34,8 +32,6 @@ type TemplateContext struct {
 	// The values are FS paths from the root directory of the templates
 	locals  map[string]string
 	globals map[string]string
-	all     *template.Template
-	cache   *store.Store[*template.Template]
 }
 
 func NewTemplateContext(path string) TemplateContext {
@@ -43,7 +39,6 @@ func NewTemplateContext(path string) TemplateContext {
 		Path:    path,
 		locals:  make(map[string]string),
 		globals: make(map[string]string),
-		all:     nil,
 	}
 }
 
@@ -57,6 +52,9 @@ func (c *TemplateContext) Parse(fsys fs.FS) error {
 
 	for _, e := range entries {
 		if e.IsDir() {
+			// INFO: components in the components directory can be overwritten
+			// by components in the base directory down below
+			// TODO: Maybe allow for subdirectories in the components directory?
 			if e.Name() == TEMPLATE_COMPONENT_DIRECTORY {
 				entries, err := fs.ReadDir(fsys, filepath.Join(fspath, e.Name()))
 				if err != nil {
@@ -100,6 +98,7 @@ func (c *TemplateContext) Parse(fsys fs.FS) error {
 
 func (c *TemplateContext) SetGlobals(globals map[string]string) error {
 	// INFO: this allows for overwriting of existing global keys.
+	// Make sure to call this appopriately before or after Parse(), depending on your use case
 	for k, v := range globals {
 		c.globals[k] = v
 	}
@@ -111,30 +110,17 @@ func (c *TemplateContext) GetGlobals() map[string]string {
 }
 
 func (c *TemplateContext) Get(fsys fs.FS) (*template.Template, error) {
-	if c.all == nil {
-		err := c.SetCache(fsys)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return c.all, nil
-}
-
-func (c *TemplateContext) SetCache(fsys fs.FS) error {
 	t, err := readTemplates(fsys, nil, c.globals)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	t, err = readTemplates(fsys, t, c.locals)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	c.all = t
-
-	return nil
+	return t, nil
 }
 
 func readTemplates(fsys fs.FS, t *template.Template, paths map[string]string) (*template.Template, error) {

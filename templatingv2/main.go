@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
-	"strings"
 
 	"github.com/Simon-Martens/misc_tests/templating"
 	"github.com/Simon-Martens/misc_tests/views"
@@ -22,7 +20,6 @@ func main() {
 	lr = templating.NewLayoutRegistry(views.LayoutFS)
 	tr = templating.NewTemplateRegistry(views.RoutesFS)
 
-	lr.Parse()
 	tr.Parse()
 
 	e.GET("/*", getEverything(lr, tr))
@@ -35,20 +32,10 @@ func getEverything(layouts *templating.LayoutRegistry, routes *templating.Templa
 
 		path := c.Request().URL.Path
 
-		// TODO: getting single components is not supported ATM
-		if !strings.HasSuffix(path, "/") {
-			path += "/"
-		}
 		layout, err := layouts.Get(DEFAULT_LAYOUT_NAME)
 		if err != nil {
 			return c.String(500, err.Error())
 		}
-		// layout, err := layouts.Get(DEFAULT_LAYOUT_NAME)
-		// if err != nil {
-		// 	return c.String(500, err.Error())
-		// }
-
-		fmt.Println(layout.Name())
 
 		// We clone this here, since driver templates can only be executed once
 		layout, err = layout.Clone()
@@ -56,23 +43,11 @@ func getEverything(layouts *templating.LayoutRegistry, routes *templating.Templa
 			return c.String(500, err.Error())
 		}
 
-		// tc, err := routes.Add(path, layout)
-
 		err = routes.Add(path, layout)
+		// FIXME: we should react do different error types differntly
 		if err != nil {
 			return c.String(500, err.Error())
 		}
-
-		// FIXME: Here we don't know the behaviour of the htm/template package
-		// Are there sub-templates? Do I need a for loop to add them to the global name space?
-		// INFO: since we don't clone the template, we can't execute it multiple times, right?
-		// INFO: AddParseTree deletes all sub-templates of the root template.
-		// for _, st := range tc.Templates() {
-		//	_, err = layout.AddParseTree(st.Name(), st.Tree)
-		//	if err != nil {
-		//		return c.String(500, err.Error())
-		//	}
-		// }
 
 		// TODO: we should probably reuse buffers here to avoid allocations
 		var buffer bytes.Buffer
