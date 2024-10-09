@@ -29,7 +29,7 @@ type TemplateContext struct {
 	// WARNING: Path is a URL path, NOT a filesystem path
 	Path string
 	// WARNING: The keys of these maps are template names, NOT filesystem paths
-	// The values are FS paths from the root directory of the templates
+	// The values are FS paths absolute from the root directory of the templates FS
 	locals  map[string]string
 	globals map[string]string
 }

@@ -2,6 +2,7 @@ package templating
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"os"
@@ -93,12 +94,18 @@ func (r *TemplateRegistry) Add(path string, t *template.Template) error {
 			return NewError(NoTemplateError, path)
 		}
 
-		temp, err := tc.Get(r.routesFS)
+		template, err := tc.Get(r.routesFS)
 		if err != nil {
 			return err
 		}
 
+		// NOTE: we do it like this since using temp above would create a new variable in this scope, not overwrite temp
+		temp = template
 		r.cache.Set(path, temp)
+	}
+
+	if temp == nil {
+		fmt.Println("temp is still nil!")
 	}
 
 	for _, st := range temp.Templates() {
