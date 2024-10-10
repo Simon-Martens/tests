@@ -1,7 +1,6 @@
 package templating
 
 import (
-	"errors"
 	"html/template"
 	"io/fs"
 	"path/filepath"
@@ -9,26 +8,10 @@ import (
 	"strings"
 )
 
-var InvalidPathError = errors.New("Invalid path. Must be a directory.")
-var FileAccessError = errors.New("could not stat file or directory")
-
-var TEMPLATE_FORMATS = []string{".html", ".tmpl", ".gotmpl", ".gotemplate", ".gohtml", ".gohtmltemplate"}
-
-const TEMPLATE_GLOBAL_CONTEXT_NAME = "globals"
-const TEMPLATE_LOCAL_CONTEXT_NAME = "locals"
-const TEMPLATE_GLOBAL_PREFIX = "_"
-const TEMPLATE_COMPONENT_DIRECTORY = "components"
-const TEMPLATE_HEAD = "head"
-const TEMPLATE_BODY = "body"
-const TEMPLATE_HEADERS = "headers"
-
-// We define our own template type, to define some methods on it
-type Template template.Template
-
 type TemplateContext struct {
-	// WARNING: Path is a URL path, NOT a filesystem path
+	//  WARNING: Path is a URL path, NOT a filesystem path
 	Path string
-	// WARNING: The keys of these maps are template names, NOT filesystem paths
+	//  WARNING: The keys of these maps are template names, NOT filesystem paths
 	// The values are FS paths absolute from the root directory of the templates FS
 	locals  map[string]string
 	globals map[string]string

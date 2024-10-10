@@ -1,7 +1,6 @@
 package templating
 
 import (
-	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -11,8 +10,6 @@ import (
 	"github.com/pocketbase/pocketbase/tools/store"
 	"github.com/yalue/merged_fs"
 )
-
-var InvalidTemplateError = errors.New("invalid template")
 
 type TemplateRegistry struct {
 	routesFS fs.FS
@@ -37,7 +34,7 @@ func NewTemplateRegistry(routes fs.FS) *TemplateRegistry {
 	}
 }
 
-// This returns a new TemplateRegistry with the new fs added to the existing fs,
+// INFO: This returns a new TemplateRegistry with the new fs added to the existing fs,
 // merging with the existing FS, possibly overwriting existing files.
 func (r *TemplateRegistry) Register(path string, fs fs.FS) *TemplateRegistry {
 	return NewTemplateRegistry(merged_fs.MergeMultiple(fs, r.routesFS))

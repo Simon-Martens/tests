@@ -1,5 +1,12 @@
 package templating
 
+import "errors"
+
+var InvalidPathError = errors.New("Invalid path. Must be a directory.")
+var NoTemplateError = errors.New("No template found for this name")
+var InvalidTemplateError = errors.New("invalid template")
+var FileAccessError = errors.New("could not stat file or directory")
+
 type FSError[T error] struct {
 	File string
 	Err  T

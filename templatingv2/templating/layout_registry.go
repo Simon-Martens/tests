@@ -1,7 +1,6 @@
 package templating
 
 import (
-	"errors"
 	"html/template"
 	"io/fs"
 
@@ -9,8 +8,9 @@ import (
 	"github.com/yalue/merged_fs"
 )
 
-var NoTemplateError = errors.New("No template found for this name")
-
+// TODO: Implement Handler interface, maybe in template? But then template would need to know about the layout registry
+// Function signature: func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
+// A static Handler could incoporate both the layout registry and the template registry and serve templates that dont need any data
 type LayoutRegistry struct {
 	layoutsFS fs.FS
 	parsed    bool
@@ -79,14 +79,18 @@ func (r *LayoutRegistry) Parse() error {
 	return nil
 }
 
+// TODO: this pattern here might not be thread save, since parsed can be false for concurrent handlers when calling Get()
+// Maybe use the std/library once package to ensure Parse() is only called once
 func (r *LayoutRegistry) Get(name string) (*template.Template, error) {
 	cached := r.cache.Get(name)
+	// This makes sense bc it is very likely cached on most requests
 	if cached != nil {
 		return cached, nil
 	}
 
 	context, ok := r.layouts[name]
 	if !ok {
+		// This makes only sense to check ONCE, we will have to call NewError(NoTemplateError, name) 99.9999999999% of the requests
 		if !r.parsed {
 			err := r.Parse()
 			if err != nil {
